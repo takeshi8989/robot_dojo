@@ -10,7 +10,7 @@ env = CircularSwimmerEnv(base_env)
 model = PPO("MlpPolicy", env, verbose=1)
 
 reward_logger = RewardLoggerCallback()
-model.learn(total_timesteps=5_000_000, callback=reward_logger)
+model.learn(total_timesteps=500_000, callback=reward_logger)
 
 save_model(model, "circular_swimmer_ppo")
 
