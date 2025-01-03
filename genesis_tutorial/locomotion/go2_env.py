@@ -8,6 +8,13 @@ def gs_rand_float(lower, upper, shape, device):
     return (upper - lower) * torch.rand(size=shape, device=device) + lower
 
 
+def run_sim(env, policy):
+        obs, _ = env.reset()
+        with torch.no_grad():
+            while True:
+                actions = policy(obs)
+                obs, _, rews, dones, infos = env.step(actions)
+
 class Go2Env:
     def __init__(self, num_envs, env_cfg, obs_cfg, reward_cfg, command_cfg, show_viewer=False, device="mps"):
         self.device = torch.device(device)
@@ -111,6 +118,10 @@ class Go2Env:
             dtype=gs.tc_float,
         )
         self.extras = dict()  # extra information for logging
+
+    def setup_sim(self, policy):
+        gs.tools.run_in_another_thread(fn=run_sim, args=(self, policy))
+        self.scene.viewer.start()
 
     def _resample_commands(self, envs_idx):
         self.commands[envs_idx, 0] = gs_rand_float(*self.command_cfg["lin_vel_x_range"], (len(envs_idx),), self.device)
