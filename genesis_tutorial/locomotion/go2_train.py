@@ -144,7 +144,9 @@ def main():
 
     gs.init(logging_level="warning")
 
-    log_dir = f"logs/{args.exp_name}"
+    current_dir = os.path.dirname(__file__)
+    log_dir = os.path.join(current_dir, f"logs/{args.exp_name}")
+    
     env_cfg, obs_cfg, reward_cfg, command_cfg = get_cfgs()
     train_cfg = get_train_cfg(args.exp_name, args.max_iterations)
 
