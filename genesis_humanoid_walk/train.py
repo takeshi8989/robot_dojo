@@ -3,7 +3,7 @@ import os
 import pickle
 import shutil
 
-from genesis_tutorial.locomotion.go2_env import Go2Env
+from env import Go2Env
 from rsl_rl.runners import OnPolicyRunner
 
 import genesis as gs
@@ -137,7 +137,7 @@ def get_cfgs():
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-e", "--exp_name", type=str, default="go2-walking")
+    parser.add_argument("-e", "--exp_name", type=str, default="humanoid_walking")
     parser.add_argument("-B", "--num_envs", type=int, default=4096)
     parser.add_argument("--max_iterations", type=int, default=100)
     args = parser.parse_args()
@@ -173,5 +173,5 @@ if __name__ == "__main__":
 
 """
 # training
-python examples/locomotion/go2_train.py
+python genesis_humanoid_walk/train.py -e humanoid_walking
 """
