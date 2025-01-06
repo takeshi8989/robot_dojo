@@ -133,7 +133,8 @@ def main():
     )
 
     current_dir = os.path.dirname(__file__)
-    checkpoint_file = os.path.join(current_dir, f"backflip/{args.exp_name}.pt")
+    log_dir = os.path.join(current_dir, "..", f"logs/backflip/{args.exp_name}")
+    checkpoint_file = os.path.join(current_dir, f"{log_dir}.pt")
 
     policy = torch.jit.load(checkpoint_file)
     policy.to(device="mps")
@@ -146,5 +147,5 @@ if __name__ == "__main__":
 
 """
 # evaluation
-python examples/locomotion/go2_backflip.py -v -e double
+python genesis_tutorial/locomotion/go2_backflip.py -v -e double
 """
