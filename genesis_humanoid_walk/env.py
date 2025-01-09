@@ -1,3 +1,4 @@
+import os
 import torch
 import math
 import genesis as gs
@@ -64,12 +65,11 @@ class Go2Env:
         self.base_init_pos = torch.tensor(self.env_cfg["base_init_pos"], device=self.device)
         self.base_init_quat = torch.tensor(self.env_cfg["base_init_quat"], device=self.device)
         self.inv_base_init_quat = inv_quat(self.base_init_quat)
+
+        current_dir = os.path.dirname(__file__)
+        robot_path = os.path.join(current_dir, "model/g1.xml")
         self.robot = self.scene.add_entity(
-            gs.morphs.URDF(
-                file="urdf/go2/urdf/go2.urdf",
-                pos=self.base_init_pos.cpu().numpy(),
-                quat=self.base_init_quat.cpu().numpy(),
-            ),
+            gs.morphs.MJCF(file=robot_path)
         )
 
         # build
@@ -245,28 +245,22 @@ class Go2Env:
         return self.obs_buf, None
 
     # ------------ reward functions----------------
-    def _reward_tracking_lin_vel(self):
-        # Tracking of linear velocity commands (xy axes)
-        lin_vel_error = torch.sum(torch.square(self.commands[:, :2] - self.base_lin_vel[:, :2]), dim=1)
-        return torch.exp(-lin_vel_error / self.reward_cfg["tracking_sigma"])
+    def _reward_forward_velocity(self):
+        # Reward forward velocity (x-axis)
+        forward_velocity = self.base_lin_vel[:, 0]
+        return forward_velocity
 
-    def _reward_tracking_ang_vel(self):
-        # Tracking of angular velocity commands (yaw)
-        ang_vel_error = torch.square(self.commands[:, 2] - self.base_ang_vel[:, 2])
-        return torch.exp(-ang_vel_error / self.reward_cfg["tracking_sigma"])
+    def _reward_energy_efficiency(self):
+        # Penalize excessive energy usage
+        energy_efficiency = torch.sum(torch.square(self.actions), dim=1)
+        return -energy_efficiency
 
-    def _reward_lin_vel_z(self):
-        # Penalize z axis base linear velocity
-        return torch.square(self.base_lin_vel[:, 2])
+    def _reward_joint_limits(self):
+        # Penalize extreme joint positions
+        joint_limits = torch.sum(torch.square(self.dof_pos - self.default_dof_pos), dim=1)
+        return -joint_limits
 
-    def _reward_action_rate(self):
-        # Penalize changes in actions
-        return torch.sum(torch.square(self.last_actions - self.actions), dim=1)
-
-    def _reward_similar_to_default(self):
-        # Penalize joint poses far away from default pose
-        return torch.sum(torch.abs(self.dof_pos - self.default_dof_pos), dim=1)
-
-    def _reward_base_height(self):
-        # Penalize base height away from target
-        return torch.square(self.base_pos[:, 2] - self.reward_cfg["base_height_target"])
+    def _reward_stability(self):
+        # Reward stability by minimizing angular velocity
+        stability = torch.sum(torch.square(self.base_ang_vel), dim=1)
+        return -stability

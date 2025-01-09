@@ -1,60 +1,187 @@
 import argparse
+import os
+import pickle
+import shutil
+
+from env import Go2Env
+from rsl_rl.runners import OnPolicyRunner
+
 import genesis as gs
 
 
-def main():
+def get_train_cfg(exp_name, max_iterations):
 
+    train_cfg_dict = {
+        "algorithm": {
+            "clip_param": 0.2,
+            "desired_kl": 0.01,
+            "entropy_coef": 0.01,
+            "gamma": 0.99,
+            "lam": 0.95,
+            "learning_rate": 0.001,
+            "max_grad_norm": 1.0,
+            "num_learning_epochs": 5,
+            "num_mini_batches": 4,
+            "schedule": "adaptive",
+            "use_clipped_value_loss": True,
+            "value_loss_coef": 1.0,
+        },
+        "policy": {
+            "activation": "elu",
+            "actor_hidden_dims": [512, 256, 128],
+            "critic_hidden_dims": [512, 256, 128],
+            "init_noise_std": 1.0,
+        },
+        "runner": {
+            "algorithm_class_name": "PPO",
+            "checkpoint": -1,
+            "experiment_name": exp_name,
+            "load_run": -1,
+            "log_interval": 1,
+            "max_iterations": max_iterations,
+            "num_steps_per_env": 32,
+            "policy_class_name": "ActorCritic",
+            "record_interval": -1,
+            "resume": False,
+            "resume_path": None,
+            "run_name": "",
+            "save_interval": 100,
+        },
+        "runner_class_name": "OnPolicyRunner",
+        "seed": 1,
+    }
+
+    return train_cfg_dict
+
+
+def get_cfgs():
+    env_cfg = {
+        "model_path": "path_to_humanoid_model.xml",
+        "num_actions": 29,
+        "default_joint_angles": {
+            "left_hip_pitch_joint": 0.0,
+            "left_hip_roll_joint": 0.0,
+            "left_hip_yaw_joint": 0.0,
+            "left_knee_joint": 0.0,
+            "left_ankle_pitch_joint": 0.0,
+            "left_ankle_roll_joint": 0.0,
+            "right_hip_pitch_joint": 0.0,
+            "right_hip_roll_joint": 0.0,
+            "right_hip_yaw_joint": 0.0,
+            "right_knee_joint": 0.0,
+            "right_ankle_pitch_joint": 0.0,
+            "right_ankle_roll_joint": 0.0,
+            "waist_yaw_joint": 0.0,
+            "waist_roll_joint": 0.0,
+            "waist_pitch_joint": 0.0,
+            "left_shoulder_pitch_joint": 0.0,
+            "left_shoulder_roll_joint": 0.0,
+            "left_shoulder_yaw_joint": 0.0,
+            "left_elbow_joint": 0.0,
+            "left_wrist_roll_joint": 0.0,
+            "left_wrist_pitch_joint": 0.0,
+            "left_wrist_yaw_joint": 0.0,
+            "right_shoulder_pitch_joint": 0.0,
+            "right_shoulder_roll_joint": 0.0,
+            "right_shoulder_yaw_joint": 0.0,
+            "right_elbow_joint": 0.0,
+            "right_wrist_roll_joint": 0.0,
+            "right_wrist_pitch_joint": 0.0,
+            "right_wrist_yaw_joint": 0.0
+        },
+        "dof_names": [
+            "left_hip_pitch_joint", "left_hip_roll_joint", "left_hip_yaw_joint",
+            "left_knee_joint", "left_ankle_pitch_joint", "left_ankle_roll_joint",
+            "right_hip_pitch_joint", "right_hip_roll_joint", "right_hip_yaw_joint",
+            "right_knee_joint", "right_ankle_pitch_joint", "right_ankle_roll_joint",
+            "waist_yaw_joint", "waist_roll_joint", "waist_pitch_joint",
+            "left_shoulder_pitch_joint", "left_shoulder_roll_joint", "left_shoulder_yaw_joint",
+            "left_elbow_joint", "left_wrist_roll_joint", "left_wrist_pitch_joint", "left_wrist_yaw_joint",
+            "right_shoulder_pitch_joint", "right_shoulder_roll_joint", "right_shoulder_yaw_joint",
+            "right_elbow_joint", "right_wrist_roll_joint", "right_wrist_pitch_joint", "right_wrist_yaw_joint"
+        ],
+        # PD
+        "kp": 20.0,
+        "kd": 0.5,
+        # termination
+        "termination_if_roll_greater_than": 45,  # degree
+        "termination_if_pitch_greater_than": 45,
+        # base pose
+        "base_init_pos": [0.0, 0.0, 0.7],
+        "base_init_quat": [1.0, 0.0, 0.0, 0.0],
+        "episode_length_s": 30.0,
+        "resampling_time_s": 4.0,
+        "action_scale": 0.25,
+        "simulate_action_latency": True,
+        "clip_actions": 100.0,
+    }
+    obs_cfg = {
+        "num_obs": 96,
+        "obs_scales": {
+            "lin_vel": 1.0,
+            "ang_vel": 0.5,
+            "dof_pos": 1.0,
+            "dof_vel": 0.1,
+        },
+    }
+    reward_cfg = {
+        "tracking_sigma": 0.25,
+        "base_height_target": 0.3,
+        "feet_height_target": 0.075,
+        "reward_scales": {
+            "forward_velocity": 2.0,  # Encourage moving forward faster
+            "energy_efficiency": -0.1,  # Penalize excessive energy usage
+            "joint_limits": -0.05,  # Penalize extreme joint angles
+            "stability": 5.0,  # Strongly encourage stability (e.g., low angular velocity)
+        }
+    }
+    command_cfg = {
+        "num_commands": 3,
+        "lin_vel_x_range": [-1.0, 1.0],
+        "lin_vel_y_range": [-1.0, 1.0],
+        "ang_vel_range": [-3.14, 3.14],
+    }
+
+    return env_cfg, obs_cfg, reward_cfg, command_cfg
+
+
+def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-v", "--vis", action="store_true", default=False)
+    parser.add_argument("-e", "--exp_name", type=str, default="humanoid_walking")
+    parser.add_argument("-B", "--num_envs", type=int, default=2048)
+    parser.add_argument("--max_iterations", type=int, default=100)
     args = parser.parse_args()
 
-    ########################## init ##########################
-    gs.init(backend=gs.cpu)
+    gs.init(logging_level="warning")
 
-    ########################## create a scene ##########################
-
-    scene = gs.Scene(
-        sim_options=gs.options.SimOptions(),
-        viewer_options=gs.options.ViewerOptions(
-            camera_pos=(0, 0.0, 7),
-            camera_lookat=(0.3, -0.6, 0.5),
-            camera_fov=40,
-        ),
-        show_viewer=args.vis,
-        rigid_options=gs.options.RigidOptions(
-            dt=0.01
-        ),
-    )
-
-    ########################## entities ##########################
-    plane = scene.add_entity(gs.morphs.Plane())
-    import os
     current_dir = os.path.dirname(__file__)
-    path = os.path.join(current_dir, "model/g1.xml")
-    robot = scene.add_entity(
-        gs.morphs.MJCF(file=path)
+    log_dir = os.path.join(current_dir, f"logs/{args.exp_name}")
+
+    env_cfg, obs_cfg, reward_cfg, command_cfg = get_cfgs()
+    train_cfg = get_train_cfg(args.exp_name, args.max_iterations)
+
+    if os.path.exists(log_dir):
+        shutil.rmtree(log_dir)
+    os.makedirs(log_dir, exist_ok=True)
+
+    env = Go2Env(
+        num_envs=args.num_envs, env_cfg=env_cfg, obs_cfg=obs_cfg, reward_cfg=reward_cfg, command_cfg=command_cfg
     )
 
-    ########################## build ##########################
-    scene.build()
+    runner = OnPolicyRunner(env, train_cfg, log_dir, device="mps")
 
-    gs.tools.run_in_another_thread(fn=run_sim, args=(scene, args.vis, robot))
-    if args.vis:
-        scene.viewer.start()
+    pickle.dump(
+        [env_cfg, obs_cfg, reward_cfg, command_cfg, train_cfg],
+        open(f"{log_dir}/cfgs.pkl", "wb"),
+    )
 
-
-def run_sim(scene, enable_vis, robot):
-    i = 0
-    while True:
-        i += 1
-        scene.step()
-
-        if i > 200:
-            break
-
-    if enable_vis:
-        scene.viewer.stop()
+    runner.learn(num_learning_iterations=args.max_iterations, init_at_random_ep_len=True)
 
 
 if __name__ == "__main__":
     main()
+
+"""
+# training
+python genesis_humanoid_walk/train.py
+"""
