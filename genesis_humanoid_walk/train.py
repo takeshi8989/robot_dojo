@@ -127,12 +127,14 @@ def get_cfgs():
     }
     reward_cfg = {
         "reward_scales": {
-            "survival_time": 1.0,
+            "survival_time": 5.0,
             "base_height": 10.0,  # Encourage maintaining height
             "stability": 15.0,  # Strongly discourage angular velocity
-            "energy_efficiency": 0.1,  # Penalize excessive energy usage
-            "knee_straightness": -1.0,  # Penalize knee bending
+            "energy_efficiency": 1.0,  # Penalize excessive energy usage
             "forward_velocity": 2.0,   # Encourage forward movement
+            "tracking_lin_vel": 1.0,  # Encourage tracking linear velocity
+            "foot_contact": 0.1,  # Penalize foot contact
+            "smooth_motion": 0.01  # Negative weight to discourage rapid changes
         },
         "base_height_target": 0.8,
     }
