@@ -67,8 +67,8 @@ def main():
     # Load environment and training configurations
     env_cfg, obs_cfg, reward_cfg, command_cfg, train_cfg = pickle.load(open(f"{log_dir}/cfgs.pkl", "rb"))
     train_cfg = get_train_cfg(args.exp_name, args.max_iterations, resume_path)
-    
-    # env_cfg["episode_length_s"] = 30.0
+
+    env_cfg["episode_length_s"] = 30.0
     # env_cfg["kp"] = 200.0
     # env_cfg["kd"] = 10.0
     # env_cfg["action_scale"] = 2.0
@@ -77,11 +77,11 @@ def main():
     reward_cfg["reward_scales"] = {
         "survival_time": 5.0,
         "base_height": 10.0,  # Encourage maintaining height
-        "stability": 15.0,  # Strongly discourage angular velocity
+        "stability": 10.0,  # Strongly discourage angular velocity
         "energy_efficiency": 1.0,  # Penalize excessive energy usage
-        "forward_velocity": 2.0,   # Encourage forward movement
-        "tracking_lin_vel": 1.0,  # Encourage tracking linear velocity
-        "foot_contact": 0.1,  # Penalize foot contact
+        "forward_velocity": 4.0,   # Encourage forward movement
+        "tracking_lin_vel": 2.0,  # Encourage tracking linear velocity
+        "foot_contact": 0.01,  # Penalize foot contact
         "smooth_motion": 0.01  # Negative weight to discourage rapid changes
     }
 
@@ -118,5 +118,5 @@ if __name__ == "__main__":
 
 """
 # Resume training with updated reward functions
-python genesis_humanoid_walk/resume.py -e humanoid_walking_v1 --resume_ckpt 1000
+python genesis_humanoid_walk/resume.py -e humanoid_walking_v2 --resume_ckpt 4000 --max_iterations 10000
 """

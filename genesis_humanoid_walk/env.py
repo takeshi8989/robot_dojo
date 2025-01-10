@@ -310,13 +310,11 @@ class Go2Env:
         right_foot_contacts = self.robot.get_contacts(with_entity=right_foot_entity)
 
         # Convert valid_mask from NumPy to PyTorch tensor
-        left_foot_contact_count = torch.sum(torch.tensor(
-            left_foot_contacts["valid_mask"], device=self.device).float(), dim=1)
-        right_foot_contact_count = torch.sum(torch.tensor(
-            right_foot_contacts["valid_mask"], device=self.device).float(), dim=1)
+        left_foot_in_contact = torch.tensor(left_foot_contacts["valid_mask"], device=self.device).any(dim=1).float()
+        right_foot_in_contact = torch.tensor(right_foot_contacts["valid_mask"], device=self.device).any(dim=1).float()
 
-        # Reward is proportional to the number of valid contacts
-        return left_foot_contact_count + right_foot_contact_count
+        # Reward if either foot is in contact
+        return (left_foot_in_contact + right_foot_in_contact).clamp(max=1.0)
 
     def _reward_smooth_motion(self):
         # Penalize large action changes (to avoid jerky movements)
