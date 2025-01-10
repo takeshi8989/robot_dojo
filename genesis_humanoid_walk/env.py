@@ -1,6 +1,7 @@
 import os
 import torch
 import math
+import numpy as np
 import genesis as gs
 from genesis.utils.geom import quat_to_xyz, transform_by_quat, inv_quat, transform_quat_by_quat
 
@@ -81,6 +82,13 @@ class Go2Env:
         # PD control parameters
         self.robot.set_dofs_kp([self.env_cfg["kp"]] * self.num_actions, self.motor_dofs)
         self.robot.set_dofs_kv([self.env_cfg["kd"]] * self.num_actions, self.motor_dofs)
+        
+        # force range
+        self.robot.set_dofs_force_range(
+            lower=np.array([-self.env_cfg["force_range"]] * self.num_actions),
+            upper=np.array([self.env_cfg["force_range"]] * self.num_actions),
+            dofs_idx_local=self.motor_dofs,
+        )
 
         # prepare reward functions and multiply reward scales by dt
         self.reward_functions, self.episode_sums = dict(), dict()
@@ -93,7 +101,7 @@ class Go2Env:
         self.base_lin_vel = torch.zeros((self.num_envs, 3), device=self.device, dtype=gs.tc_float)
         self.base_ang_vel = torch.zeros((self.num_envs, 3), device=self.device, dtype=gs.tc_float)
         self.projected_gravity = torch.zeros((self.num_envs, 3), device=self.device, dtype=gs.tc_float)
-        self.global_gravity = torch.tensor([0.0, 0.0, -1.0], device=self.device, dtype=gs.tc_float).repeat(
+        self.global_gravity = torch.tensor([0.0, 0.0, -10], device=self.device, dtype=gs.tc_float).repeat(
             self.num_envs, 1
         )
         self.obs_buf = torch.zeros((self.num_envs, self.num_obs), device=self.device, dtype=gs.tc_float)
@@ -261,6 +269,29 @@ class Go2Env:
         return -joint_limits
 
     def _reward_stability(self):
-        # Reward stability by minimizing angular velocity
-        stability = torch.sum(torch.square(self.base_ang_vel), dim=1)
-        return -stability
+        # Reward for keeping roll and pitch angles small
+        roll_pitch_error = torch.square(self.base_euler[:, 0]) + torch.square(self.base_euler[:, 1])
+        return torch.exp(-roll_pitch_error)
+
+    def _reward_base_height(self):
+        # Reward for maintaining target base height
+        return -torch.square(self.base_pos[:, 2] - self.reward_cfg["base_height_target"])
+
+    def _reward_survival_time(self):
+        # Constant positive reward for staying alive
+        return torch.ones(self.num_envs, device=self.device)
+
+    def _reward_knee_straightness(self):
+        # Target angle for straight knees and tolerance for small bending
+        target_knee_angle = 0.0
+        tolerance = 0.2  # Allowable bending in radians
+        knee_joints = [
+            self.env_cfg["dof_names"].index("left_knee_joint"),
+            self.env_cfg["dof_names"].index("right_knee_joint"),
+        ]
+        knee_angles = self.dof_pos[:, knee_joints]
+        penalty = torch.sum(
+            torch.square(torch.clamp(knee_angles - target_knee_angle, min=-tolerance, max=tolerance)),
+            dim=1
+        )
+        return -penalty
