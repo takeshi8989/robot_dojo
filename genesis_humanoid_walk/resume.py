@@ -68,14 +68,20 @@ def main():
     env_cfg, obs_cfg, reward_cfg, command_cfg, train_cfg = pickle.load(open(f"{log_dir}/cfgs.pkl", "rb"))
     
     env_cfg["episode_length_s"] = 20.0
+    env_cfg["kp"] = 20.0
+    env_cfg["kd"] = 2.0
+    env_cfg["action_scale"] = 1.0
 
     # Update the reward functions
     reward_cfg["reward_scales"] = {
         "survival_time": 5.0,
         "base_height": 10.0,  # Encourage maintaining height
         "stability": 15.0,  # Strongly discourage angular velocity
-        "energy_efficiency": 2.0,  # Penalize excessive energy usage
-        "forward_velocity": 1.0,   # Encourage forward movement
+        "energy_efficiency": 1.5,  # Penalize excessive energy usage
+        "forward_velocity": 2.0,   # Encourage forward movement
+        "tracking_lin_vel": 2.0,  # Encourage tracking linear velocity
+        "foot_contact": 1.0,  # Penalize foot contact
+        "smooth_motion": 0.01  # Negative weight to discourage rapid changes
     }
 
     # Optionally, remove or add new rewards

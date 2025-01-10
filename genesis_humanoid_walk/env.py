@@ -82,7 +82,7 @@ class Go2Env:
         # PD control parameters
         self.robot.set_dofs_kp([self.env_cfg["kp"]] * self.num_actions, self.motor_dofs)
         self.robot.set_dofs_kv([self.env_cfg["kd"]] * self.num_actions, self.motor_dofs)
-        
+
         # force range
         self.robot.set_dofs_force_range(
             lower=np.array([-self.env_cfg["force_range"]] * self.num_actions),
@@ -295,3 +295,18 @@ class Go2Env:
             dim=1
         )
         return -penalty
+
+    def _reward_foot_contact(self):
+        # Reward for having feet in contact with the ground
+        left_foot_contact = self.robot.get_contact("left_foot_link")
+        right_foot_contact = self.robot.get_contact("right_foot_link")
+        return (left_foot_contact + right_foot_contact).float()
+
+    def _reward_smooth_motion(self):
+        # Penalize large action changes (to avoid jerky movements)
+        return -torch.sum(torch.square(self.actions - self.last_actions), dim=1)
+
+    def _reward_tracking_lin_vel(self):
+        # Penalize deviations from the target velocity (reduce jerky forward movement)
+        lin_vel_error = torch.sum(torch.square(self.commands[:, :2] - self.base_lin_vel[:, :2]), dim=1)
+        return -lin_vel_error  # Penalize deviations
