@@ -297,10 +297,26 @@ class Go2Env:
         return -penalty
 
     def _reward_foot_contact(self):
-        # Reward for having feet in contact with the ground
-        left_foot_contact = self.robot.get_contact("left_foot_link")
-        right_foot_contact = self.robot.get_contact("right_foot_link")
-        return (left_foot_contact + right_foot_contact).float()
+        # Use ankle roll links as foot contact points
+        left_foot_link_name = "left_ankle_roll_link"
+        right_foot_link_name = "right_ankle_roll_link"
+
+        # Retrieve link entities
+        left_foot_entity = self.robot.get_link(left_foot_link_name)
+        right_foot_entity = self.robot.get_link(right_foot_link_name)
+
+        # Get contact information for the left and right foot entities
+        left_foot_contacts = self.robot.get_contacts(with_entity=left_foot_entity)
+        right_foot_contacts = self.robot.get_contacts(with_entity=right_foot_entity)
+
+        # Convert valid_mask from NumPy to PyTorch tensor
+        left_foot_contact_count = torch.sum(torch.tensor(
+            left_foot_contacts["valid_mask"], device=self.device).float(), dim=1)
+        right_foot_contact_count = torch.sum(torch.tensor(
+            right_foot_contacts["valid_mask"], device=self.device).float(), dim=1)
+
+        # Reward is proportional to the number of valid contacts
+        return left_foot_contact_count + right_foot_contact_count
 
     def _reward_smooth_motion(self):
         # Penalize large action changes (to avoid jerky movements)
