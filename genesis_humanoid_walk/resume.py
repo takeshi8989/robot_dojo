@@ -43,7 +43,7 @@ def get_train_cfg(exp_name, max_iterations, resume_path=None):
             "resume": True,
             "resume_path": resume_path,  # Path to the checkpoint to resume training
             "run_name": "",
-            "save_interval": 100,
+            "save_interval": 500,
         },
         "runner_class_name": "OnPolicyRunner",
         "seed": 1,
@@ -68,21 +68,16 @@ def main():
     env_cfg, obs_cfg, reward_cfg, command_cfg, train_cfg = pickle.load(open(f"{log_dir}/cfgs.pkl", "rb"))
     train_cfg = get_train_cfg(args.exp_name, args.max_iterations, resume_path)
 
-    env_cfg["episode_length_s"] = 30.0
-    # env_cfg["kp"] = 200.0
-    # env_cfg["kd"] = 10.0
-    # env_cfg["action_scale"] = 2.0
-
     # Update the reward functions
     reward_cfg["reward_scales"] = {
         "survival_time": 5.0,
-        "base_height": 10.0,  # Encourage maintaining height
-        "stability": 10.0,  # Strongly discourage angular velocity
-        "energy_efficiency": 1.0,  # Penalize excessive energy usage
-        "forward_velocity": 4.0,   # Encourage forward movement
-        "tracking_lin_vel": 2.0,  # Encourage tracking linear velocity
-        "foot_contact": 0.01,  # Penalize foot contact
-        "smooth_motion": 0.01  # Negative weight to discourage rapid changes
+        "base_height": 6.0,  # Encourage maintaining height
+        "stability": 8.0,  # Strongly discourage angular velocity
+        "energy_efficiency": 2.0,  # Penalize excessive energy usage
+        "forward_velocity": 6.0,   # Encourage forward movement
+        "tracking_lin_vel": 4.0,  # Encourage tracking linear velocity
+        "foot_contact": 0.0001,  # Penalize foot contact
+        "smooth_motion": 0.2  # Negative weight to discourage rapid changes
     }
 
     # Optionally, remove or add new rewards
@@ -118,5 +113,5 @@ if __name__ == "__main__":
 
 """
 # Resume training with updated reward functions
-python genesis_humanoid_walk/resume.py -e humanoid_walking_v2 --resume_ckpt 4000 --max_iterations 10000
+python genesis_humanoid_walk/resume.py -e humanoid_walking_v3 --resume_ckpt 3500 --max_iterations 30000
 """
