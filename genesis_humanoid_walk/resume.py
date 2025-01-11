@@ -70,14 +70,15 @@ def main():
 
     # Update the reward functions
     reward_cfg["reward_scales"] = {
-        "survival_time": 5.0,
-        "base_height": 6.0,  # Encourage maintaining height
-        "stability": 8.0,  # Strongly discourage angular velocity
+        "survival_time": 4.0,
+        "base_height": 5.0,  # Encourage maintaining height
+        "stability": 5.0,  # Strongly discourage angular velocity
         "energy_efficiency": 2.0,  # Penalize excessive energy usage
-        "forward_velocity": 6.0,   # Encourage forward movement
-        "tracking_lin_vel": 4.0,  # Encourage tracking linear velocity
+        # "forward_velocity": 6.0,   # Encourage forward movement
+        # "tracking_lin_vel": 4.0,  # Encourage tracking linear velocity
         "foot_contact": 0.0001,  # Penalize foot contact
-        "smooth_motion": 0.2  # Negative weight to discourage rapid changes
+        "smooth_motion": 0.1,  # Negative weight to discourage rapid changes
+        "straight_walking": 10.0  # Encourage walking in a straight line
     }
 
     # Optionally, remove or add new rewards
@@ -113,5 +114,5 @@ if __name__ == "__main__":
 
 """
 # Resume training with updated reward functions
-python genesis_humanoid_walk/resume.py -e humanoid_walking_v3 --resume_ckpt 3500 --max_iterations 30000
+python genesis_humanoid_walk/resume.py -e humanoid_walking_v4 --resume_ckpt 13000 --max_iterations 10000
 """
