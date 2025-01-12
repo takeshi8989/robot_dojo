@@ -327,17 +327,6 @@ class Go2Env:
         return -lin_vel_error  # Penalize deviations
 
     def _reward_straight_walking(self):
-        # Encourage forward velocity
-        forward_vel = self.base_lin_vel[:, 0]  # x-axis velocity
-        forward_reward = forward_vel.clamp(min=0.0)  # Only reward positive x velocity
-
-        # Penalize sideways deviation
-        y_deviation_penalty = torch.square(self.base_pos[:, 1])  # Penalize deviation from y = 0
-
-        # Penalize angular deviation from forward direction
-        desired_heading = torch.tensor([1.0, 0.0, 0.0], device=self.device)  # Forward direction
-        forward_direction = self.robot.get_forward_direction()  # Assuming this method exists
-        alignment_penalty = 1.0 - torch.sum(forward_direction * desired_heading, dim=1).clamp(min=0.0)
-
-        # Combine rewards and penalties
-        return forward_reward - 0.1 * y_deviation_penalty - 0.1 * alignment_penalty
+        reward_x_pos = self.base_pos[:, 0]
+        reward_y_pos = -torch.abs(self.base_pos[:, 1])
+        return reward_x_pos + reward_y_pos

@@ -43,7 +43,7 @@ def get_train_cfg(exp_name, max_iterations, resume_path=None):
             "resume": True,
             "resume_path": resume_path,  # Path to the checkpoint to resume training
             "run_name": "",
-            "save_interval": 500,
+            "save_interval": 100,
         },
         "runner_class_name": "OnPolicyRunner",
         "seed": 1,
@@ -74,8 +74,8 @@ def main():
         "base_height": 5.0,  # Encourage maintaining height
         "stability": 5.0,  # Strongly discourage angular velocity
         "energy_efficiency": 2.0,  # Penalize excessive energy usage
-        # "forward_velocity": 6.0,   # Encourage forward movement
-        # "tracking_lin_vel": 4.0,  # Encourage tracking linear velocity
+        "forward_velocity": 5.0,   # Encourage forward movement
+        "tracking_lin_vel": 3.0,  # Encourage tracking linear velocity
         "foot_contact": 0.0001,  # Penalize foot contact
         "smooth_motion": 0.1,  # Negative weight to discourage rapid changes
         "straight_walking": 10.0  # Encourage walking in a straight line
