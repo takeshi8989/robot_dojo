@@ -330,3 +330,27 @@ class Go2Env:
         reward_x_pos = self.base_pos[:, 0]
         reward_y_pos = -torch.abs(self.base_pos[:, 1])
         return reward_x_pos + reward_y_pos
+
+    def _reward_large_strides(self):
+        # Encourage large hip and knee movements
+        hip_knee_joints = ["left_hip_pitch_joint", "right_hip_pitch_joint",
+                           "left_knee_joint", "right_knee_joint"]
+        joint_displacements = torch.sum(
+            torch.abs(self.actions[:, [self.env_cfg["dof_names"].index(j) for j in hip_knee_joints]]), dim=1)
+        return joint_displacements
+
+    def _reward_torso_upright(self):
+        # Penalize pitch and roll angles of the torso
+        torso_pitch_roll = torch.square(self.base_euler[:, :2])  # [pitch, roll]
+        return -torch.sum(torso_pitch_roll, dim=1)
+
+    def _reward_crotch_control(self):
+        # Get the positions (angles) of the left and right hip roll joints
+        left_hip_roll_angle = self.dof_pos[:, self.env_cfg["dof_names"].index("left_hip_roll_joint")]
+        right_hip_roll_angle = self.dof_pos[:, self.env_cfg["dof_names"].index("right_hip_roll_joint")]
+
+        # Square the deviations to penalize large angles more
+        hip_roll_deviation = torch.square(left_hip_roll_angle) + torch.square(right_hip_roll_angle)
+
+        # Return a negative reward proportional to the total deviation
+        return -hip_roll_deviation

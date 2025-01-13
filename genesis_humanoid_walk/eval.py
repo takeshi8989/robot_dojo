@@ -45,5 +45,5 @@ if __name__ == "__main__":
 
 """
 # evaluation
-python genesis_humanoid_walk/eval.py -e humanoid_walking -v --ckpt 100
+python genesis_humanoid_walk/eval.py -e humanoid_walking_v5_resumed -v --ckpt 12000
 """
