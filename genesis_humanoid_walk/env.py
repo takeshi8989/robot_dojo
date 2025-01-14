@@ -61,7 +61,7 @@ class Go2Env:
 
         # add plain
         self.plane = self.scene.add_entity(gs.morphs.URDF(file="urdf/plane/plane.urdf", fixed=True))
-        self.plane.geoms[0].set_friction(2.5)
+        self.plane.geoms[0].set_friction(4.0)
 
         # add robot
         self.base_init_pos = torch.tensor(self.env_cfg["base_init_pos"], device=self.device)
@@ -169,8 +169,13 @@ class Go2Env:
 
         # check termination and reset
         self.reset_buf = self.episode_length_buf > self.max_episode_length
-        self.reset_buf |= torch.abs(self.base_euler[:, 1]) > self.env_cfg["termination_if_pitch_greater_than"]
-        self.reset_buf |= torch.abs(self.base_euler[:, 0]) > self.env_cfg["termination_if_roll_greater_than"]
+        # self.reset_buf |= torch.abs(self.base_euler[:, 1]) > self.env_cfg["termination_if_pitch_greater_than"]
+        # self.reset_buf |= torch.abs(self.base_euler[:, 0]) > self.env_cfg["termination_if_roll_greater_than"]
+
+        # Check termination and reset
+        self.reset_buf = self.episode_length_buf > self.max_episode_length
+        # Terminate if the base height drops below a threshold (indicating a fall)
+        self.reset_buf |= self.base_pos[:, 2] < self.env_cfg.get("termination_base_height", 0.4)
 
         time_out_idx = (self.episode_length_buf > self.max_episode_length).nonzero(as_tuple=False).flatten()
         self.extras["time_outs"] = torch.zeros_like(self.reset_buf, device=self.device, dtype=gs.tc_float)
@@ -332,12 +337,19 @@ class Go2Env:
         return reward_x_pos + reward_y_pos
 
     def _reward_large_strides(self):
-        # Encourage large hip and knee movements
-        hip_knee_joints = ["left_hip_pitch_joint", "right_hip_pitch_joint",
-                           "left_knee_joint", "right_knee_joint"]
-        joint_displacements = torch.sum(
-            torch.abs(self.actions[:, [self.env_cfg["dof_names"].index(j) for j in hip_knee_joints]]), dim=1)
-        return joint_displacements
+        # Define the hip pitch joints for left and right sides
+        left_hip_joint = "left_hip_pitch_joint"
+        right_hip_joint = "right_hip_pitch_joint"
+
+        # Get the indices of the hip joints
+        left_hip_index = self.env_cfg["dof_names"].index(left_hip_joint)
+        right_hip_index = self.env_cfg["dof_names"].index(right_hip_joint)
+
+        # Calculate the absolute difference between left and right hip joint actions
+        hip_joint_difference = torch.abs(self.actions[:, left_hip_index] - self.actions[:, right_hip_index])
+
+        # Return the reward proportional to the hip joint differences
+        return hip_joint_difference
 
     def _reward_torso_upright(self):
         # Penalize pitch and roll angles of the torso
@@ -354,3 +366,32 @@ class Go2Env:
 
         # Return a negative reward proportional to the total deviation
         return -hip_roll_deviation
+
+    def _reward_arm_swing(self):
+        # Reward symmetrical arm swings
+        left_arm = self.actions[:, self.env_cfg["dof_names"].index("left_shoulder_pitch_joint")]
+        right_arm = self.actions[:, self.env_cfg["dof_names"].index("right_shoulder_pitch_joint")]
+        return -torch.abs(left_arm + right_arm)  # Penalize asymmetrical arm swings
+
+    def _reward_knee_movement(self):
+        # Define knee joint names
+        knee_joints = ["left_knee_joint", "right_knee_joint"]
+
+        # Get the current knee joint positions
+        knee_positions = self.dof_pos[:, [self.env_cfg["dof_names"].index(j) for j in knee_joints]]
+
+        # Get the current knee joint velocities
+        knee_velocities = self.dof_vel[:, [self.env_cfg["dof_names"].index(j) for j in knee_joints]]
+
+        # Encourage bending and extending (dynamic movement)
+        # Reward is based on the absolute velocity of the knee joints
+        dynamic_movement_reward = torch.sum(torch.abs(knee_velocities), dim=1)
+
+        # Optionally: Penalize the robot for keeping knees too straight (close to default positions)
+        knee_bending_penalty = torch.sum(torch.square(
+            knee_positions - self.default_dof_pos[:, [self.env_cfg["dof_names"].index(j) for j in knee_joints]]), dim=1)
+
+        # Combine the rewards
+        reward = dynamic_movement_reward - 0.1 * knee_bending_penalty  # Adjust weight as needed
+
+        return reward

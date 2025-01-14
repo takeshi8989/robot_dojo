@@ -43,7 +43,7 @@ def get_train_cfg(exp_name, max_iterations, resume_path=None):
             "resume": True,
             "resume_path": resume_path,  # Path to the checkpoint to resume training
             "run_name": "",
-            "save_interval": 100,
+            "save_interval": 200,
         },
         "runner_class_name": "OnPolicyRunner",
         "seed": 1,
@@ -68,22 +68,24 @@ def main():
     env_cfg, obs_cfg, reward_cfg, command_cfg, train_cfg = pickle.load(open(f"{log_dir}/cfgs.pkl", "rb"))
     train_cfg = get_train_cfg(args.exp_name, args.max_iterations, resume_path)
 
-    env_cfg["episode_length_s"] = 20.0
+    # env_cfg["episode_length_s"] = 20.0
 
-    # Update the reward functions
+    # # Update the reward functions
     reward_cfg["reward_scales"] = {
-        "survival_time": 8.0,
-        "base_height": 5.0,  # Encourage maintaining height
-        "stability": 3.0,  # Strongly discourage angular velocity
-        "energy_efficiency": 2.0,  # Penalize excessive energy usage
-        "forward_velocity": 12.0,   # Encourage forward movement
-        "tracking_lin_vel": 8.0,  # Encourage tracking linear velocity
-        "foot_contact": 0.00001,  # Penalize foot contact
-        "smooth_motion": 0.1,  # Negative weight to discourage rapid changes
-        "straight_walking": 10.0,  # Encourage walking in a straight line
-        "large_strides": 10.0,
-        "torso_upright": 0.1,
-        "crotch_control": 8.0,
+        'survival_time': 12.0,
+        'base_height': 5.0,
+        'stability': 3.0,
+        'energy_efficiency': 0.5,
+        'forward_velocity': 15.0,
+        'tracking_lin_vel': 10.0,
+        'foot_contact': 1e-05,
+        'smooth_motion': 0.1,
+        'straight_walking': 10.0,
+        'large_strides': 5.0,
+        'torso_upright': 0.01,
+        'crotch_control': 5.0,
+        'arm_swing': 0.1,
+        "knee_movement": 1.0,
     }
 
     # Optionally, remove or add new rewards
@@ -119,5 +121,5 @@ if __name__ == "__main__":
 
 """
 # Resume training with updated reward functions
-python genesis_humanoid_walk/resume.py -e humanoid_walking_v6 --resume_ckpt 12000 --max_iterations 10000
+python genesis_humanoid_walk/resume.py -e humanoid_walking_vx --resume_ckpt 18500 --max_iterations 10000
 """
